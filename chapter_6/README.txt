@@ -1,0 +1,2 @@
+USAGE:
+    sh makefile.sh
