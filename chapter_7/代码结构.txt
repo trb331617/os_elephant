@@ -13,6 +13,10 @@ FILE: boot/loader.asm
     |
 FILE: main.c
     |
+    |---- FILE: lib/print.asm       put_str("i am kernel\n");
+    |       | 打印提示信息
+    |       | 汇编实现打印函数，C语言调用
+    |
     |---- FILE: kernel/init.c       init_all()
     |       | 初始化
     |       |
@@ -23,6 +27,11 @@ FILE: main.c
     |       |       | 中断发生时，会根据IDTR中的IDT基地址+中断向量*8，跳转到对应的汇编代码
     |       |       |           
     |       |       |---- FILE: kernel/core_interrupt.asm
+    |       |       |
+    |       |       |---- FILE: lib/io.h
+    |       |               | 内联汇编实现的读写端口函数
+    |       |               | 凡是包含io.h的文件，都会获得一份io.h中所有函数的拷贝
+    |       |               | inline是建议处理器将函数编译为内嵌方式，即在该函数调用处原封不动地展开
     |       |       
     |       |----- FILE: device/timer.c         timer_init()
     |               | 初始化可编程定时计时器8253
