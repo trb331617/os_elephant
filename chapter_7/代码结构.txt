@@ -1,0 +1,40 @@
+DATE: 20200313
+===============
+
+
+FILE: boot/mbr.asm
+    | 加载loader，并跳转
+    |
+    |
+FILE: boot/loader.asm
+    | 调用BIOS中断获取内存大小；构建GDT，进入保护模式；加载kernel；创建页目录PD和页表PT，开启分页机制；
+    | 解析kernel的ELF，将ELF文件中的段segment拷贝到各段自己被编译的虚拟地址处；跳转
+    |
+    |
+FILE: main.c
+    |
+    |---- FILE: kernel/init.c       init_all()
+    |       | 初始化
+    |       |
+    |       |----- FILE: kernel/interrupt.c     idt_init() 
+    |       |       | 初始化中断   
+    |       |       | 构建IDT，这里IDT中的每一项都指向对应的一段汇编代码，再由汇编调用C语言中断处理函数
+    |       |       | 初始化可编程中断控制器8259A，放开时钟中断0x20
+    |       |       | 中断发生时，会根据IDTR中的IDT基地址+中断向量*8，跳转到对应的汇编代码
+    |       |       |           
+    |       |       |---- FILE: kernel/core_interrupt.asm
+    |       |       
+    |       |----- FILE: device/timer.c         timer_init()
+    |               | 初始化可编程定时计时器8253
+    |               | 使用8253来给IRQ0引脚上的时钟中断信号“提速”，使其发出的中断信号频率快一些。
+    |               | 默认的频率是18.206Hz，即一秒内大约发出18 次中断信号。
+    |               | 通过对8253编程，使时钟一秒内发100次中断信号，即中断信号频率为100Hz.
+    |       
+    |---- asm volatile("sti")
+    |       | 打开外部中断
+    |
+    |---- while(1)
+
+
+
+
