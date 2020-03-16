@@ -1,0 +1,75 @@
+DATE: 20200313
+===============
+
+
+FILE: boot/mbr.asm
+    | 加载loader，并跳转
+    |
+    |
+FILE: boot/loader.asm
+    | 调用BIOS中断获取内存大小；构建GDT，进入保护模式；加载kernel；创建页目录PD和页表PT，开启分页机制；
+    | 解析kernel的ELF，将ELF文件中的段segment拷贝到各段自己被编译的虚拟地址处；跳转
+    |
+    |
+FILE: main.c
+    |
+    |---- FILE: lib/print.asm       put_str("i am kernel\n");
+    |       | 打印提示信息
+    |       | 汇编实现打印函数(写入显存0xb_8000，loader阶段设为GDT第3号)，C语言调用
+    |
+    |---- FILE: kernel/init.c       init_all()
+    |       | 初始化
+    |       |
+    |       |---- FILE: kernel/interrupt.c  idt_init() 
+    |       |       | 初始化中断   
+    |       |       | 构建IDT，这里IDT中的每一项都指向对应的一段汇编代码，再由汇编调用C语言中断处理函数
+    |       |       | 初始化可编程中断控制器8259A，放开时钟中断0x20
+    |       |       | 中断发生时，会根据IDTR中的IDT基地址+中断向量*8，跳转到对应的汇编代码
+    |       |       |           
+    |       |       |---- FILE: kernel/core_interrupt.asm
+    |       |       |
+    |       |       |---- FILE: lib/io.h
+    |       |               | 内联汇编实现的读写端口函数
+    |       |               | 凡是包含io.h的文件，都会获得一份io.h中所有函数的拷贝
+    |       |               | inline是建议处理器将函数编译为内嵌方式，即在该函数调用处原封不动地展开
+    |       |       
+    |       |---- FILE: device/timer.c      timer_init()
+    |       |       | 初始化可编程定时计时器8253
+    |       |       | 使用8253来给IRQ0引脚上的时钟中断信号“提速”，使其发出的中断信号频率快一些。
+    |       |       | 默认的频率是18.206Hz，即一秒内大约发出18 次中断信号。
+    |       |       | 通过对8253编程，使时钟一秒内发100次中断信号，即中断信号频率为100Hz.
+    |       |
+    |       |---- FILE: kernel/memory.c     mem_init()
+    |               | 初始化内存管理系统
+    |               | mem_pool_init()初始化内存池: 内核虚拟地址内存池、内核/用户物理内存池
+    |               |   虚拟地址内存池: 虚拟地址bitmap、虚拟地址内存池起始地址
+    |               |   物理内存池：物理内存bitmap、物理内存起始地址、物理内存池大小
+    |               |    
+    |               |---- FILE: lib/bitmap.c    bitmap_init()  bitmap_scan()  bitmap_set()
+    |               |       | bitmap的基本操作
+    |               |       |
+    |               |       |---- FILE: lib/string.c    memset()
+    |               |               | 内存/字符串的基本操作
+    |               |    
+    |               |---- FILE: kernel/debug.h      ASSERT()  PANIC()
+    |                       | 断言
+    |                       |
+    |                       |---- FILE: kernel/debug.c      panic_spin(__FILE__, __LINE__, __func__, __VA_ARGS__)
+    |                               | 关中断，打印相关信息，while(1)使程序悬停
+    |                               |
+    |                               |---- FILE: kernel/interrupt.c      intr_disable();
+    |                                       | 关中断
+    |
+    |---- FILE: kernel/memory.c     get_kernel_pages(3);
+    |       | (测试)申请3页内核内存
+    |       |   1) 虚拟内存池中申请连续的虚拟页 vaddr_get()
+    |       |   2) 依次为每一个虚拟页在物理内存池中申请物理页 palloc()
+    |       |   3) 在页表中完成虚拟地址和物理地址的映射 page_table_add()
+    |
+    |---- while(1)
+
+
+
+
+
+
