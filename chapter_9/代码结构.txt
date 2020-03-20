@@ -91,11 +91,22 @@ FILE: kernel/main.c
     |                                       | 修改状态为RUNNING
     |                                       |
     |                                       |---- FILE: thread/switch.asm   switch_to(current_thread, next);
-    |                                               | 切换栈
+    |                                               | 切换栈、切换执行流eip
+    |                                               | *********************************************
+    |                                               | 此处的理解需结合线程栈信息struct thread_stack和函数thread_create()
+    |                                               | *********************************************
     |                                               | 保存current线程的寄存器, 将next线程的寄存器装载到处理器
-    |                                               | 传入的2个参数压入了current栈中, 这2个参数为2线程PCB基地址
+    |                                               | 传入的2个参数自动压入了current栈中, 这2个参数为2线程PCB基地址
     |                                               | PCB底部为线程/进程信息struct task_struct, 第一个成员为栈顶地址
-    |                                               | 伪代码: mov [current], esp; mov esp, [next];    
+    |                                               | 切换栈: 伪代码 mov [current], esp; mov esp, [next];
+    |                                               | 切换执行线程: ret。这里利用了ret的特性, 自动从栈弹出给eip
+    |                                               |         栈中存放eip处, 已由函数thread_create赋值为kernel_thread()
+    |                                               |
+    |                                               |---- FILE: thread/thread.c     kernel_thread(function, func_arg)
+    |                                                       | 执行创建线程时指定的函数
+    |                                                       | 这里2个参数的值已由函数thread_create赋值在栈中
+    |                                                       | intr_enable()开中断, 避免时钟中断被屏蔽而无法调度其它线程    
+    |                                                       | function(func_arg)执行新线程，
     |
     |---- FILE: thread/thread.c     thread_start()
     |       | 创建一个线程并执行
@@ -104,11 +115,12 @@ FILE: kernel/main.c
     |       |
     |       | init_thread()在PCB底部 初始化线程基本信息: 状态 优先级 嘀嗒时间数 ...
     |       | thread_create()初始化线程栈: 中断使用的栈信息struct intr_stack, 线程栈信息struct thread_stack, 线程栈
-    |       |   线程栈信息struct thread_stack: 栈顶为返回地址、栈顶+4为参数function、栈顶+8为参数func_arg
+    |       |   线程栈信息struct thread_stack: 栈顶为寄存器和eip(指向kernel_thread函数)和返回地址
+    |       |                                  跳过返回地址栈顶+4为参数function、栈顶+8为参数func_arg
     |       | list_append()加入就绪队列、全部队列
     |       |
     |       |---- FILE: kernel/memory.c     get_kernel_pages();
-    |               | (测试)申请3页内核内存
+    |               | 申请内核空间中的内存
     |               |   1) 虚拟内存池中申请连续的虚拟页 vaddr_get()
     |               |   2) 依次为每一个虚拟页在物理内存池中申请物理页 palloc()
     |               |   3) 在页表中完成虚拟地址和物理地址的映射 page_table_add()
